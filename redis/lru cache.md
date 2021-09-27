@@ -39,4 +39,23 @@ maxmemory 100mb
 
 - client 运行新的命令，导致了添加更多数据。
 - Redis 检测内存使用情况，如果大于 maxmemory limit，则根据策略淘汰。
-- 
+- 运行新的命令，等等。
+
+
+
+### 近似的 LRU 算法
+
+```
+maxmemory-samples 5
+```
+
+这就是为什么 Redis 不使用真正的 LRU 实现，因为这样会导致更多的内存使用。
+
+
+
+### LFU mode (Least Frequently Used eviction mode)
+
+
+
+
+
