@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	"github.com/go-redsync/redsync/v4"
+	"github.com/go-redsync/redsync/v4/redis/goredis/v8"
 	"testing"
 	"time"
 )
@@ -112,4 +114,37 @@ func TestReleaseLockWithLua(t *testing.T) {
 func TestEval(t *testing.T) {
 	result, err := redisIns.Eval(ctx, "return {KEYS[1],ARGV[1]}", []string{"key"}, "hello").Result()
 	fmt.Println(result, err)
+}
+
+func TestRedisSync(t *testing.T) {
+	// Create a pool with go-redis (or redigo) which is the pool redisync will
+	// use while communicating with Redis. This can also be any pool that
+	// implements the `redis.Pool` interface.
+	client := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+	pool := goredis.NewPool(client) // or, pool := redigo.NewPool(...)
+
+	// Create an instance of redisync to be used to obtain a mutual exclusion
+	// lock.
+	rs := redsync.New(pool)
+
+	// Obtain a new mutex by using the same name for all instances wanting the
+	// same lock.
+	mutexname := "my-global-mutex"
+	mutex := rs.NewMutex(mutexname)
+
+	// Obtain a lock for our given mutex. After this is successful, no one else
+	// can obtain the same lock (the same mutex name) until we unlock it.
+	if err := mutex.Lock(); err != nil {
+		panic(err)
+	}
+
+	// Do your work that requires the lock.
+	fmt.Println("aaa")
+
+	// Release the lock so other processes or threads can obtain a lock.
+	if ok, err := mutex.Unlock(); !ok || err != nil {
+		panic("unlock failed")
+	}
 }
