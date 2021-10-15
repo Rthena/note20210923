@@ -50,30 +50,66 @@ func ExampleClient() {
 	// key2 does not exist
 }
 
-func tryLock(key, reqSet string, timeout time.Duration) bool {
-	result, err := redisIns.SetNX(ctx, key, reqSet, timeout).Result()
+const lock = "tryLock"
+
+func TryLockWithSetNX(key, uniqueID string, timeout time.Duration) (bool, error) {
+	result, err := redisIns.SetNX(ctx, key, uniqueID, timeout).Result()
 	if err != nil {
-		fmt.Println("SetNX", err)
-		return false
+		fmt.Printf("%s lock err:%s", key, err)
+		return false, fmt.Errorf("%s lock err:%s", key, err)
 	}
 	if result {
-		return true
+		fmt.Printf("%s lock success", key)
+		return true, nil
 	}
-
-	defer func() {
-
-	}()
-	return false
+	return false, fmt.Errorf("%s has been locked", key)
+}
+func TestTryLockWithSetNX(t *testing.T) {
+	lock, err := TryLockWithSetNX(lock, "1", 60*time.Second)
+	t.Log(lock, err)
 }
 
-func TestTryLock(t *testing.T) {
-	lock := tryLock("keynx", "666", 60*time.Second)
-	t.Log(lock)
+const lockScrip = "if redis.call('setnx',KEYS[1],ARGV[1]) == 1" +
+	" then redis.call('expire',KEYS[1],ARGV[2]) return 1 else return 0 end"
+
+func TryLockWithLua(key, uniqueID string, second int) (bool, error) {
+	result, err := redisIns.Eval(ctx, lockScrip, []string{key}, uniqueID, second).Result()
+	if err != nil {
+		fmt.Printf("%s lock err:%s", key, err)
+		return false, fmt.Errorf("%s lock err:%s", key, err)
+	}
+	if val, ok := result.(int64); ok && val == 1 {
+		fmt.Printf("%s lock success", key)
+		return true, nil
+	}
+	return false, fmt.Errorf("%s has been locked", key)
+}
+func TestTryLockWithLua(t *testing.T) {
+	lock, err := TryLockWithLua(lock, "1", 300)
+	t.Log(lock, err)
 }
 
-const luaScrip = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"
+const releaseLockScrip = "if redis.call('get',KEYS[1]) == ARGV[1] then " +
+	"return redis.call('del',KEYS[1]) else return 0 end"
 
-func releaseLock(key string) {
-	eval := redisIns.Eval(ctx, luaScrip, []string{key})
-	result, err := eval.Result()
+func ReleaseLockWithLua(key, uniqueID string) (bool, error) {
+	result, err := redisIns.Eval(ctx, releaseLockScrip, []string{key}, uniqueID).Result()
+	if err != nil {
+		fmt.Printf("%s release err:%s", key, err.Error())
+		return false, fmt.Errorf("%s ReleaseLockWithLua err:%s", key, err.Error())
+	}
+	if val, ok := result.(int64); ok && val == 1 {
+		fmt.Printf("%s release success", key)
+		return true, nil
+	}
+	return false, fmt.Errorf("%s has been released", key)
+}
+func TestReleaseLockWithLua(t *testing.T) {
+	lock, err := ReleaseLockWithLua(lock, "1")
+	t.Log(lock, err)
+}
+
+func TestEval(t *testing.T) {
+	result, err := redisIns.Eval(ctx, "return {KEYS[1],ARGV[1]}", []string{"key"}, "hello").Result()
+	fmt.Println(result, err)
 }
