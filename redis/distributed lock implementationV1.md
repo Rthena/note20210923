@@ -7,7 +7,7 @@
 ```bash
     SET resource_name my_random_value NX PX 30000
 ```
-该命令仅在密钥不存在（NX 选项）时设置密钥，过期时间为 30000 毫秒（PX 选项）。 密钥设置为值“my_random_value”。 
+该命令仅在 key不存在（NX 选项）时设置密钥，过期时间为 30000 毫秒（PX 选项）。 key 设置为值“my_random_value”。 
 
 my_random_value必须要具有唯一性，我们可以用UUID来做，设置随机字符串保证唯一性，至于为什么要保证唯一性？假如value不是随机字符串，而是一个固定值，那么就可能存在下面的问题：
 
