@@ -147,3 +147,9 @@ func createCases(chs ...chan int) []reflect.SelectCase {
 //func doCleanup() {
 //	fmt.Println("do clean up")
 //}
+
+func TestChannel7(t *testing.T) {
+	//c := make(chan int, 0)
+	//
+	//<-c
+}
